@@ -31,15 +31,10 @@ class PostController extends Controller
 				'actions'=>array('index','view'),
 				'users'=>array('*'),
 			),
-			array('allow', // allow authenticated user to perform 'create' and 'update' actions
-				'actions'=>array('create','update'),
+			array('allow', // permette di fare tutte le azioni agli utenti registrati (incluse le admin actions)
 				'users'=>array('@'),
 			),
-			array('allow', // allow admin user to perform 'admin' and 'delete' actions
-				'actions'=>array('admin','delete'),
-				'users'=>array('admin'),
-			),
-			array('deny',  // deny all users
+			array('deny',  // deny all users per tutti gli altri scenari
 				'users'=>array('*'),
 			),
 		);
@@ -51,9 +46,25 @@ class PostController extends Controller
 	 */
 	public function actionView($id)
 	{
+		$post = $this->loadModel($id);
+		$comment = $this->newComment($post);
+
 		$this->render('view',array(
-			'model'=>$this->loadModel($id),
+			'model' => $post,
+			'comment' => $comment
 		));
+	}
+	protected function newComment($post){
+		$comment = new Comment;
+		if(isset($_POST['Comment'])){
+			$comment->attributes=$_POST['Comment'];
+			if($post->addComment($comment)){
+				if($comment->status==Comment::STATUS_PENDING)
+					Yii::app()->user->setFlash('commentSubmitted', 'Thank you for your comment. Your comment will be posted once it is approved.');
+        $this->refresh();
+      }
+    }
+    return $comment;
 	}
 
 	/**
@@ -116,13 +127,34 @@ class PostController extends Controller
 		if(!isset($_GET['ajax']))
 			$this->redirect(isset($_POST['returnUrl']) ? $_POST['returnUrl'] : array('admin'));
 	}
+	public function afterDelete(){
+		parent::afterDelete();
+		Comment::model()->deleteAll('post_id='.$this->id);
+    Tag::model()->updateFrequency($this->tags, '');
+	}
 
 	/**
 	 * Lists all models.
 	 */
-	public function actionIndex()
+	public function actionIndex($tag = null)	//se nn viene passato un tag allora fai vedere tutti i post
 	{
-		$dataProvider=new CActiveDataProvider('Post');
+		$criteria = new CDbCriteria(array(
+			'condition' => 'status=' . Post::STATUS_PUBLISHED,
+			'order' => 'update_time DESC',
+			'with' => 'commentCount'
+		));
+
+		if($tag != null){
+			$criteria->addSearchCondition('tags', $tag);
+		}
+
+
+		$dataProvider=new CActiveDataProvider('Post', array(
+			'pagination' => array(
+				'pageSize' => 5,
+			),
+			'criteria' => $criteria,
+		));
 		$this->render('index',array(
 			'dataProvider'=>$dataProvider,
 		));
@@ -133,7 +165,7 @@ class PostController extends Controller
 	 */
 	public function actionAdmin()
 	{
-		$model=new Post('search');
+		$model=new Post('search');			//It first creates a Post model under the search scenario
 		$model->unsetAttributes();  // clear any default values
 		if(isset($_GET['Post']))
 			$model->attributes=$_GET['Post'];
@@ -152,10 +184,16 @@ class PostController extends Controller
 	 */
 	public function loadModel($id)
 	{
-		$model=Post::model()->findByPk($id);
-		if($model===null)
-			throw new CHttpException(404,'The requested page does not exist.');
-		return $model;
+			if(Yii::app()->user->isGuest){
+				$condition = 'status='.Post::STATUS_PUBLISHED . 'OR status=' . Post::STATUS_ARCHIVED;
+			} else {
+				$condition = '';
+			}
+			$model = Post::model()->findByPk($id, $condition);
+
+			if($model===null)
+				throw new CHttpException(404,'The requested page does not exist.');
+			return $model;
 	}
 
 	/**
