@@ -8,6 +8,16 @@
 <div class="span-5 last">
 	<div id="sidebar">
 	<?php
+		if(!Yii::app()->user->isGuest) $this->widget('UserMenu');
+
+		$this->widget('TagCloud');
+
+		$this->widget('RecentComments', array(
+        'maxComments'=>Yii::app()->params['recentCommentCount'],
+    ));
+		// ,array(
+		// 	'maxTags'=>Yii::app()->params['tagCloudCount'],
+		// ));
 		$this->beginWidget('zii.widgets.CPortlet', array(
 			'title'=>'Operations',
 		));

@@ -56,6 +56,18 @@ class CommentController extends Controller
 		));
 	}
 
+
+	public function actionApprove(){
+		if(Yii::app()->request->isPostRequest){
+			$comment = $this->loadModel();
+			$comment->approve();
+			$this->redirect(array('index'));
+		}
+		else {
+			throw new CHttpException(400, 'Invalid request');
+		}
+	}
+
 	/**
 	 * Creates a new model.
 	 * If creation is successful, the browser will be redirected to the 'view' page.
@@ -122,7 +134,16 @@ class CommentController extends Controller
 	 */
 	public function actionIndex()
 	{
-		$dataProvider=new CActiveDataProvider('Comment');
+		/*
+		As described in the guide, the alias for the primary table in a relational query is always t. Therefore, we are prefixing t to the status and create_time columns in the above code to indicate we want these values taken from the primary table, tbl_comment.
+		*/
+		$dataProvider=new CActiveDataProvider('Comment', array(
+			'criteria' => array(
+				'whith' => 'post',
+				'order' => 't.status, t.create_time DESC'
+			)
+		));
+
 		$this->render('index',array(
 			'dataProvider'=>$dataProvider,
 		));

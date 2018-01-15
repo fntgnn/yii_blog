@@ -82,6 +82,18 @@ class Comment extends CActiveRecord
 	}
 
 	/**
+	 * @param Post the post that this comment belongs to. If null, the method
+	 * will query for the post.
+	 * @return string the permalink URL for this comment
+	 */
+	public function getUrl($post=null)
+	{
+		if($post===null)
+			$post=$this->post;
+		return $post->url.'#c'.$this->id;
+	}
+
+	/**
 	 * Retrieves a list of models based on the current search/filter conditions.
 	 *
 	 * Typical usecase:
@@ -113,6 +125,18 @@ class Comment extends CActiveRecord
 		));
 	}
 
+	public function approve(){
+		$this->status = Comment::STATUS_APPROVED;
+		$this->update(array('status'));
+	}
+
+	public function findRecentComments($limit = 10){
+		return $this->findAll(array(
+					 'condition'=>'t.status='.self::STATUS_APPROVED,
+					 'order'=>'t.create_time DESC',
+					 'limit'=>$limit,
+			 ));
+	}
 	/**
 	 * Returns the static model of the specified AR class.
 	 * Please note that you should have this exact method in all your CActiveRecord descendants!

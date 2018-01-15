@@ -55,7 +55,14 @@ class PostController extends Controller
 		));
 	}
 	protected function newComment($post){
+
 		$comment = new Comment;
+
+		if(isset($_POST['ajax']) && $_POST['ajax']==='comment-form'){
+			echo CACtiveForm::validate($comment);
+			Yii::app()->end();
+		}
+
 		if(isset($_POST['Comment'])){
 			$comment->attributes=$_POST['Comment'];
 			if($post->addComment($comment)){
@@ -121,12 +128,19 @@ class PostController extends Controller
 	 */
 	public function actionDelete($id)
 	{
-		$this->loadModel($id)->delete();
+		if(Yii::app()->request->isPostRequest){
+			$this->loadModel($id)->delete();
+			if(!isset($_GET['ajax']))
+		 		// $this->redirect(isset($_POST['returnUrl']) ? $_POST['returnUrl'] : array('admin'));
+				$this->redirect(array('index'));
+			}
+		}
+		// $this->loadModel($id)->delete();
+    //
+		// // if AJAX request (triggered by deletion via admin grid view), we should not redirect the browser
+		// if(!isset($_GET['ajax']))
+		// 	$this->redirect(isset($_POST['returnUrl']) ? $_POST['returnUrl'] : array('admin'));
 
-		// if AJAX request (triggered by deletion via admin grid view), we should not redirect the browser
-		if(!isset($_GET['ajax']))
-			$this->redirect(isset($_POST['returnUrl']) ? $_POST['returnUrl'] : array('admin'));
-	}
 	public function afterDelete(){
 		parent::afterDelete();
 		Comment::model()->deleteAll('post_id='.$this->id);
